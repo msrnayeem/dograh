@@ -75,7 +75,7 @@ services:
       MINIO_ACCESS_KEY: "${MINIO_USER}"
       MINIO_SECRET_KEY: "${MINIO_PASSWORD}"
       MINIO_BUCKET: "dograh-voice-audio"
-      MINIO_SECURE: "true"
+      MINIO_SECURE: "false"
       
       FASTAPI_WORKERS: "1"
       FORWARDED_ALLOW_IPS: "*"
