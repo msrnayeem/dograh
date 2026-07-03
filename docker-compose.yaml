@@ -55,7 +55,6 @@ services:
     volumes:
       - shared-tmp:/tmp
       - ./api:/app/api
-      - ./pipecat/src/pipecat:/opt/venv/lib/python3.13/site-packages/pipecat
     environment:
       ENVIRONMENT: "production"
       LOG_LEVEL: "INFO"
