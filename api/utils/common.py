@@ -4,6 +4,7 @@ Shared functions used across the application.
 """
 
 import ipaddress
+import os
 import re
 
 from loguru import logger
@@ -150,6 +151,16 @@ async def get_backend_endpoints() -> tuple[str, str]:
     Raises:
         ValueError: If no endpoint URL can be determined or URL is invalid
     """
+
+    # Check if a public webhook URL is explicitly provided
+    public_webhook_url = os.getenv("PUBLIC_WEBHOOK_URL")
+    if public_webhook_url:
+        _validate_url(public_webhook_url)
+        if public_webhook_url.startswith("https://"):
+            wss_url = public_webhook_url.replace("https://", "wss://")
+        else:
+            wss_url = public_webhook_url.replace("http://", "ws://")
+        return public_webhook_url, wss_url
 
     # If env var is explicitly set (even to empty/whitespace), validate it
     if BACKEND_API_ENDPOINT is not None:

@@ -455,3 +455,76 @@ async def search_chunks(
     except Exception as exc:
         logger.error(f"Error searching chunks: {exc}")
         raise HTTPException(status_code=500, detail="Failed to search chunks") from exc
+
+
+from pydantic import BaseModel
+import io
+
+class SaveComplaintRequest(BaseModel):
+    customer_name: str
+    complaint_text: str
+
+@router.post(
+    "/save-complaint",
+    summary="Save complaint as a Knowledge Base Document",
+)
+async def save_complaint(
+    request: SaveComplaintRequest,
+):
+    try:
+        # Default user and organization for self-hosted OSS mode
+        organization_id = 1
+        created_by_user_id = 1
+
+        # Generate unique document UUID
+        document_uuid = str(uuid.uuid4())
+        
+        # Prepare file content
+        content = f"Customer Name: {request.customer_name}\n\nComplaint Details:\n{request.complaint_text}\n"
+        content_bytes = content.encode("utf-8")
+        
+        filename = f"complaint_{request.customer_name.lower().replace(' ', '_')}_{document_uuid[:8]}.txt"
+        
+        # S3 key format: knowledge_base/{org_id}/{document_uuid}/{filename}
+        s3_key = f"knowledge_base/{organization_id}/{document_uuid}/{filename}"
+        
+        # Save file directly to MinIO
+        content_stream = io.BytesIO(content_bytes)
+        upload_ok = await storage_fs.acreate_file(s3_key, content_stream)
+        if not upload_ok:
+            raise Exception("MinIO acreate_file failed")
+            
+        # Create document record in database
+        document = await db_client.create_document(
+            organization_id=organization_id,
+            created_by=created_by_user_id,
+            filename=filename,
+            file_size_bytes=len(content_bytes),
+            file_hash="",
+            mime_type="text/plain",
+            custom_metadata={"s3_key": s3_key, "source": "voice_agent_complaint"},
+            document_uuid=document_uuid,
+            retrieval_mode="chunked",
+        )
+        
+        # Update processing status to completed
+        await db_client.update_document_status(
+            document_id=document.id,
+            status="completed",
+            total_chunks=0,
+        )
+        
+        logger.info(f"Saved complaint document {document_uuid} for customer {request.customer_name}")
+        return {
+            "status": "success",
+            "document_id": document.id,
+            "document_uuid": document_uuid,
+            "filename": filename,
+        }
+        
+    except Exception as exc:
+        logger.error(f"Error saving complaint document: {exc}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to save complaint document: {str(exc)}"
+        )
+
