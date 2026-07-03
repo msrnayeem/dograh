@@ -45,10 +45,10 @@ services:
       BACKEND_API_ENDPOINT: "https://dograh.msrnayeem.cloud"
       
       # Reuse your existing Postgres
-      DATABASE_URL: "postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@${POSTGRES_HOST_IP}:5433/dograh"
+      DATABASE_URL: "${DATABASE_URL}"
       
       # Reuse your existing Redis
-      REDIS_URL: "redis://:${REDIS_PASSWORD}@${REDIS_HOST_IP}:6379/1" # Database index 1 to isolate it
+      REDIS_URL: "${REDIS_URL}"
       
       # Reuse your existing MinIO (s3.khadin.com)
       ENABLE_AWS_S3: "false"
