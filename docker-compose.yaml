@@ -1,6 +1,25 @@
 version: '3.8'
 
 services:
+  # Separate secure database for Dograh with pgvector support
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: dograh-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - dograh-network
+
   # coturn handles WebRTC audio stream routing (UDP is required)
   coturn:
     image: coturn/coturn:4.8.0
@@ -44,8 +63,8 @@ services:
       # Single domain setup (Nginx proxies /api/v1 to port 8000)
       BACKEND_API_ENDPOINT: "https://dograh.msrnayeem.cloud"
       
-      # Reuse your existing Postgres
-      DATABASE_URL: "${DATABASE_URL}"
+      # Database connection (internal docker networking to pgvector container)
+      DATABASE_URL: "postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres"
       
       # Reuse your existing Redis
       REDIS_URL: "${REDIS_URL}"
@@ -67,6 +86,9 @@ services:
       OSS_JWT_SECRET: "${OSS_JWT_SECRET}"
     ports:
       - "127.0.0.1:8000:8000" # Bind to localhost only (Nginx reverse-proxies this)
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -101,4 +123,5 @@ networks:
     driver: bridge
 
 volumes:
+  postgres_data:
   shared-tmp:
